@@ -25,10 +25,10 @@ spec:
       - name: artifact-registry-secret
       containers:
       - name: frontend
-        image: 407622020962.dkr.ecr.us-east-1.amazonaws.com/frontend:3
+        image: 407622020962.dkr.ecr.us-east-1.amazonaws.com/frontend:8
         imagePullPolicy: Always
         env:
           - name: REACT_APP_BACKEND_URL
             value: "http://amanpathakdevops.study/api/tasks"
         ports:
-        - containerPort: 3000
+        - containerPort: 8000

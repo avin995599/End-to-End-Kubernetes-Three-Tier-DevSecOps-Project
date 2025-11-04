@@ -23,7 +23,7 @@ spec:
     spec: 
       containers:
       - name: frontend
-        image: us-central1-docker.pkg.dev/tier-project-475906/image-registry/frontend:v22
+        image: us-central1-docker.pkg.dev/tier-project-475906/image-registry/frontend:v23
         imagePullPolicy: Always
         env:
           - name: REACT_APP_BACKEND_URL

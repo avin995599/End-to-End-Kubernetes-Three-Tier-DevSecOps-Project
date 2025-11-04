@@ -108,6 +108,9 @@ pipeline {
                         # Apply Kubernetes manifests
                         kubectl apply -f Kubernetes-Manifests-file/Frontend/deployment.yaml
                         kubectl apply -f Kubernetes-Manifests-file/Frontend/service.yaml
+
+                        echo "🔁 Starting rolling update..."
+                        kubectl rollout status deployment/frontend --timeout=180s
                     '''
                 }
             }

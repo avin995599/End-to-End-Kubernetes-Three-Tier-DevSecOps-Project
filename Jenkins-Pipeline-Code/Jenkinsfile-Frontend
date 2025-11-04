@@ -62,36 +62,36 @@ pipeline {
         }
 
         stage('Deployment Update') {
-            environment {
-                GIT_REPO_NAME = "End-to-End-Kubernetes-Three-Tier-DevSecOps-Project"
-                GIT_USER_NAME = "avin995599"
-            }
-            steps {
-                dir('Kubernetes-Manifests-file/Frontend') {
-                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
-                        sh '''
-                            git config user.email "amtnet1508@gmail.com"
-                            git config user.name "avin995599"
-                            
-                            echo "Current Build Number: ${BUILD_NUMBER}"
-                            
-                            # Extract old image tag from YAML
-                            imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
-                            echo "Old Image Tag: $imageTag"
-                            
-                            # Replace old tag with new build number
-                            sed -i "s/${imageTag}/${BUILD_NUMBER}/" deployment.yaml
-                            
-                            # Commit and push the updated manifest
-                            git add deployment.yaml
-                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
-                        '''
-                    }
-                }
+    environment {
+        GIT_REPO_NAME = "End-to-End-Kubernetes-Three-Tier-DevSecOps-Project"
+        GIT_USER_NAME = "avin995599"
+    }
+    steps {
+        dir('Kubernetes-Manifests-file/Frontend') {
+            withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                sh '''
+                    git config user.email "amtnet1508@gmail.com"
+                    git config user.name "avin995599"
+                    
+                    echo "Current Build Tag: v${BUILD_NUMBER}"
+                    
+                    # Extract old image tag from YAML (match anything after frontend:)
+                    imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
+                    echo "Old Image Tag: $imageTag"
+                    
+                    # Replace old tag with new v{BUILD_NUMBER} tag
+                    sed -i "s/${imageTag}/v${BUILD_NUMBER}/" deployment.yaml
+                    
+                    # Commit and push the updated manifest
+                    git add deployment.yaml
+                    git commit -m "Update deployment image to version v${BUILD_NUMBER}"
+                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
+                '''
             }
         }
     }
+}
+
 
     post {
         success {

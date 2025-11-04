@@ -7,10 +7,12 @@ pipeline {
         GCP_ARTIFACT_KEY = credentials('service account for artifact registry')
         GCP_ARTIFACT_REPO_NAME = credentials('GCP_ARTIFACT_REPO_NAME')
 
-        // Docker image version (timestamped)
+        // Docker image version
         IMAGE_TAG = "v${env.BUILD_NUMBER}"
-        PROJECT_ID = "tier-project-475906" // Replace with your actual GCP Project ID
-        REGION = "us-central1" // Change if your Artifact Registry is in another region
+        PROJECT_ID = "tier-project-475906"
+        REGION = "us-central1"
+        CLUSTER_NAME = "deploy-cluster-1" // 🔹 your GKE cluster name
+        CLUSTER_LOCATION = "us-central1-a" // 🔹 zone or region where your cluster is deployed
     }
 
     stages {
@@ -31,6 +33,7 @@ pipeline {
                 withCredentials([file(variable: 'GOOGLE_APPLICATION_CREDENTIALS', credentialsId: 'service account for artifact registry')]) {
                     sh '''
                         gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                        gcloud config set project $PROJECT_ID
                         gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
                     '''
                 }
@@ -61,45 +64,64 @@ pipeline {
             }
         }
 
-        stage('Deployment Update') {
-    environment {
-        GIT_REPO_NAME = "End-to-End-Kubernetes-Three-Tier-DevSecOps-Project"
-        GIT_USER_NAME = "avin995599"
-    }
-    steps {
-        dir('Kubernetes-Manifests-file/Frontend') {
-            withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
-                sh '''
-                    git config user.email "amtnet1508@gmail.com"
-                    git config user.name "avin995599"
-                    
-                    echo "Current Build Tag: v${BUILD_NUMBER}"
-                    
-                    # Extract old image tag from YAML (match anything after frontend:)
-                    imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
-                    echo "Old Image Tag: $imageTag"
-                    
-                    # Replace old tag with new v{BUILD_NUMBER} tag
-                    sed -i "s/${imageTag}/v${BUILD_NUMBER}/" deployment.yaml
-                    
-                    # Commit and push the updated manifest
-                    git add deployment.yaml
-                    git commit -m "Update deployment image to version v${BUILD_NUMBER}"
-                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
-                '''
+        stage('Update Deployment Manifest') {
+            environment {
+                GIT_REPO_NAME = "End-to-End-Kubernetes-Three-Tier-DevSecOps-Project"
+                GIT_USER_NAME = "avin995599"
+            }
+            steps {
+                dir('Kubernetes-Manifests-file/Frontend') {
+                    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                        sh '''
+                            git config user.email "amtnet1508@gmail.com"
+                            git config user.name "avin995599"
+
+                            echo "Current Build Tag: v${BUILD_NUMBER}"
+
+                            imageTag=$(grep -oP '(?<=frontend:)[^ ]+' deployment.yaml)
+                            echo "Old Image Tag: $imageTag"
+
+                            sed -i "s/${imageTag}/v${BUILD_NUMBER}/" deployment.yaml
+
+                            git add deployment.yaml
+                            git commit -m "Update deployment image to version v${BUILD_NUMBER}"
+                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to GKE') {
+            steps {
+                echo "🚀 Deploying updated app to GKE cluster..."
+                withCredentials([file(variable: 'GOOGLE_APPLICATION_CREDENTIALS', credentialsId: 'service account for artifact registry')]) {
+                    sh '''
+                        # Authenticate with GKE
+                        gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                        gcloud config set project $PROJECT_ID
+
+                        # Get cluster credentials
+                        gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_LOCATION --project $PROJECT_ID
+
+                        # Apply Kubernetes manifests
+                        kubectl apply -f Kubernetes-Manifests-file/Frontend/deployment.yaml
+                        kubectl apply -f Kubernetes-Manifests-file/Frontend/service.yaml
+
+                        # Verify rollout
+                        kubectl rollout status deployment/frontend-deployment
+                    '''
+                }
             }
         }
     }
-}
-}
-
 
     post {
         success {
-            echo "✅ Build and push successful!"
+            echo "✅ Build, Push, and Deployment successful!"
         }
         failure {
-            echo "❌ Build failed. Check Jenkins logs for details."
+            echo "❌ Pipeline failed. Check Jenkins logs for details."
         }
         always {
             echo "🧹 Cleaning up workspace and Docker resources..."

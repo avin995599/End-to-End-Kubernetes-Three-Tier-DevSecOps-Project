@@ -108,9 +108,6 @@ pipeline {
                         # Apply Kubernetes manifests
                         kubectl apply -f Kubernetes-Manifests-file/Frontend/deployment.yaml
                         kubectl apply -f Kubernetes-Manifests-file/Frontend/service.yaml
-
-                        # Verify rollout
-                        kubectl rollout status deployment/frontend-deployment
                     '''
                 }
             }

@@ -21,8 +21,6 @@ spec:
       labels:
         role: frontend
     spec: 
-      imagePullSecrets:
-      - name: artifact-registry-secret
       containers:
       - name: frontend
         image: us-central1-docker.pkg.dev/tier-project-475906/image-registry/frontend:v19
